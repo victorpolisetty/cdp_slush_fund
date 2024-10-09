@@ -36,8 +36,14 @@ function App() {
         "function addAuthorizedUser(address user) external",
         "function authorizedUsers(address) external view returns (bool)",
         "function requestCounter() public view returns (uint256)",
-        "function transactionRequests(uint256) public view returns (uint256 id, address requester, address to, uint256 amount, string memory description, bool approved, bool executed)"
+        "function transactionRequests(uint256) public view returns (uint256 id, address requester, address to, uint256 amount, string memory description, bool approved, bool executed)",
+        "function approveTransactionRequest(uint256 requestId) external",
+        "function createTransactionRequest(address _to, uint256 _amount, string memory _description) external",
+        "function executeTransactionRequest(uint256 requestId) external",
+        "function owner() public view returns (address)",
+        "function authorizedUsers(address) public view returns (bool)"
     ];
+
     async function connectWallet() {
         try {
             // Clear the Web3Modal cache to prevent connecting to the wrong wallet automatically
@@ -214,6 +220,41 @@ function App() {
         }
     };
 
+    // Function to execute a transaction request
+    const executeRequest = async (requestId) => {
+        try {
+            if (!web3Provider) {
+                console.error("No web3 provider found. Please connect the wallet first.");
+                return;
+            }
+
+            // Get signer from the connected provider
+            const signer = web3Provider.getSigner();
+
+            // Create a contract instance with the signer to perform write operations
+            const contract = new ethers.Contract(contractAddress, contractAbi, signer);
+
+            console.log(`Attempting to execute request ID: ${requestId}`);
+
+            // Call the smart contract function to execute the request
+            const tx = await contract.executeTransactionRequest(requestId);
+
+            console.log("Transaction sent, waiting for confirmation...");
+
+            // Wait for the transaction to be confirmed
+            await tx.wait();
+
+            console.log("Transaction executed successfully:", tx);
+
+            setStatus(`Request ${requestId} executed successfully.`);
+            fetchRequests(); // Refresh the list of requests after execution
+        } catch (error) {
+            console.error("Error executing request:", error);
+            setStatus(`Error executing request: ${error.message}`);
+        }
+    };
+
+
     // Handler to add a new receiving address
     const addAddress = () => {
         const newAddress = prompt("Enter a new Ethereum address (e.g., 0x123... or yuga.base.eth):");
@@ -359,17 +400,51 @@ function App() {
                             ) : (
                                 <ul>
                                     {transactionRequests.map((req) => (
-                                        <li key={req.id} style={{fontSize: '20px', marginBottom: '15px'}}>
-                                            <p style={{margin: '10px 0 !important'}}><b>To:</b> {req.to}</p>
-                                            <p style={{margin: '10px 0 !important'}}><b>Amount:</b> {req.amount} ETH</p>
-                                            <p style={{margin: '10px 0 !important'}}><b>Description:</b> {req.description}</p>
-                                            <p style={{margin: '10px 0 !important'}}><b>Status:</b> {req.executed ? "Executed" : req.approved ? "Approved" : req.status || "Pending"}</p>
+                                        <li key={req.id} style={{ fontSize: '20px', marginBottom: '15px' }}>
+
+                                            {/* Container for "To", "Amount", and "Description" fields */}
+                                            <div style={{ marginBottom: '10px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                                                    <b style={{ marginRight: '5px' }}>To:</b>
+                                                    <span>{req.to}</span>
+                                                </div>
+
+                                                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                                                    <b style={{ marginRight: '5px' }}>Amount:</b>
+                                                    <span>{req.amount} ETH</span>
+                                                </div>
+
+                                                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                                                    <b style={{ marginRight: '5px' }}>Description:</b>
+                                                    <span>{req.description}</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Display the status: Fulfilled for executed, Approved for approved but not executed, and Pending otherwise */}
+                                            <p style={{ margin: '10px 0' }}>
+                                                <b>Status:</b> {req.executed ? "Fulfilled" : req.approved ? "Approved" : req.status || "Pending"}
+                                            </p>
+
+                                            {/* Conditional rendering for Approve and Execute buttons */}
                                             {!req.approved && !req.executed && (
-                                                <div style={{marginTop: '10px !important'}}>
-                                                    <button style={{fontSize: '10px', marginRight: '10px'}} onClick={() => approveRequest(req.id)}>Approve</button>
-                                                    <button style={{fontSize: '10px'}} onClick={() => denyRequest(req.id)}>Deny</button>
+                                                <div style={{ marginTop: '10px' }}>
+                                                    <button style={{ fontSize: '10px', marginRight: '10px' }} onClick={() => approveRequest(req.id)}>Approve</button>
+                                                    <button style={{ fontSize: '10px' }} onClick={() => denyRequest(req.id)}>Deny</button>
                                                 </div>
                                             )}
+
+                                            {/* New Execute button - Only visible if the request is approved but not executed */}
+                                            {req.approved && !req.executed && (
+                                                <div style={{ marginTop: '10px' }}>
+                                                    <button style={{ fontSize: '10px', backgroundColor: 'green', color: 'white' }} onClick={() => executeRequest(req.id)}>Execute</button>
+                                                </div>
+                                            )}
+                                            {/*/!* Show a label indicating the request was fulfilled *!/*/}
+                                            {/*{req.executed && (*/}
+                                            {/*    <div style={{ marginTop: '10px', color: 'green' }}>*/}
+                                            {/*        <p><b>✅</b></p>*/}
+                                            {/*    </div>*/}
+                                            {/*)}*/}
                                         </li>
                                     ))}
                                 </ul>
