@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 import Web3Modal from "web3modal"
@@ -26,13 +26,17 @@ function App() {
     const [transactionRequests, setTransactionRequests] = useState([]); // Track transaction requests
     const [authorizedUsers, setAuthorizedUsers] = useState([]); // Track authorized users
     const [web3Provider, setWeb3Provider] = useState(null);
+    const [contractBalance, setContractBalance] = useState(''); // New state variable for contract balance
+
     //TODO: put contract address here
-    const contractAddress = "0xdea18c3e92a8b959b4b52b39be8f09367109614f"; // Replace with your actual contract address
+    const contractAddress = "0x8824aece0c78b3869c16dd4fa96d451480732417"; // TODO: Replace with your actual contract address
     const provider = new ethers.providers.JsonRpcProvider('https://base-sepolia.publicnode.com');
     // Define the contract ABI (replace with the full ABI if available)
     const contractAbi = [
         "function addAuthorizedUser(address user) external",
-        "function authorizedUsers(address) external view returns (bool)"
+        "function authorizedUsers(address) external view returns (bool)",
+        "function requestCounter() public view returns (uint256)",
+        "function transactionRequests(uint256) public view returns (uint256 id, address requester, address to, uint256 amount, string memory description, bool approved, bool executed)"
     ];
     async function connectWallet() {
         try {
@@ -68,6 +72,93 @@ function App() {
             setStatus(`Connection failed: ${error.message}`);
         }
     }
+
+    // Function to fetch transaction requests from the smart contract
+    const fetchRequests = async () => {
+        try {
+            // Ensure the web3 provider is connected
+            if (!web3Provider) {
+                console.error("No web3 provider found. Please connect the wallet first.");
+                return;
+            }
+
+            // Use the provider to create a contract instance
+            const contract = new ethers.Contract(contractAddress, contractAbi, web3Provider);
+
+            // Fetch the transaction request count
+            const requestCount = await contract.requestCounter();
+            let fetchedRequests = [];
+
+            // Loop through each request in the smart contract and fetch its details
+            for (let i = 0; i < requestCount; i++) {
+                const request = await contract.transactionRequests(i);
+                fetchedRequests.push({
+                    id: request.id.toNumber(),
+                    requester: request.requester,
+                    to: request.to,
+                    amount: ethers.utils.formatEther(request.amount),
+                    description: request.description,
+                    approved: request.approved,
+                    executed: request.executed,
+                });
+            }
+
+            // Update the state with the fetched requests
+            setTransactionRequests(fetchedRequests);
+        } catch (error) {
+            console.error("Error fetching transaction requests:", error);
+        }
+    };
+
+    // Function to approve a transaction request
+    const approveRequest = async (requestId) => {
+        try {
+            if (!web3Provider) {
+                console.error("No web3 provider found. Please connect the wallet first.");
+                return;
+            }
+
+            // Get signer from the connected provider
+            const signer = web3Provider.getSigner();
+
+            // Create a contract instance with the signer to perform write operations
+            const contract = new ethers.Contract(contractAddress, contractAbi, signer);
+
+            console.log(`Attempting to approve request ID: ${requestId}`);
+
+            // Call the smart contract function to approve the request
+            const tx = await contract.approveTransactionRequest(requestId);
+
+            console.log("Transaction sent, waiting for confirmation...");
+
+            // Wait for the transaction to be confirmed
+            await tx.wait();
+
+            console.log("Transaction confirmed:", tx);
+
+            setStatus(`Request ${requestId} approved successfully.`);
+            fetchRequests(); // Refresh the list of requests after approval
+        } catch (error) {
+            console.error("Error approving request:", error);
+            setStatus(`Error approving request: ${error.message}`);
+        }
+    };
+
+
+    // Function to deny a transaction request (local state update only)
+    const denyRequest = (requestId) => {
+        setTransactionRequests(transactionRequests.map(req => (
+            req.id === requestId ? { ...req, status: 'denied' } : req
+        )));
+        setStatus(`Request ${requestId} denied.`);
+    };
+
+    useEffect(() => {
+        if (web3Provider) {
+            fetchRequests();
+            fetchContractBalance(); // Fetch contract balance when the provider is available
+        }
+    }, [web3Provider]);
 
 
 // Function to add an authorized user to the smart contract on Base Sepolia
@@ -123,8 +214,6 @@ function App() {
         }
     };
 
-
-
     // Handler to add a new receiving address
     const addAddress = () => {
         const newAddress = prompt("Enter a new Ethereum address (e.g., 0x123... or yuga.base.eth):");
@@ -162,7 +251,7 @@ function App() {
         axios.post(`${process.env.REACT_APP_BACKEND_URL}/create-and-fund-wallet`)
             .then(response => {
                 const address = response.data.address;
-                const balance = parseFloat(response.data.balance).toFixed(6); // Convert balance to a formatted number with 6 decimal places
+                const balance = parseFloat(response.data.balance).toFixed(2); // Convert balance to a formatted number with 6 decimal places
                 setWalletAddress(address); // Set wallet address
                 setWalletBalance(balance); // Set wallet balance with formatting
                 setCurrentScreen('walletDetails'); // Move to the wallet details screen
@@ -171,70 +260,32 @@ function App() {
             .catch(createError => setStatus(`Wallet creation failed: ${createError.response ? createError.response.data.message : createError.message}`));
     };
 
-    // Add a new transaction request
-    const addTransactionRequest = () => {
-        const recipient = prompt("Enter the recipient address:");
-        const amount = prompt("Enter the amount (ETH):");
-        const description = prompt("Enter a brief description for this request:");
-
-        if (recipient && amount && description) {
-            const newRequest = {
-                id: Date.now(), // Use a unique ID based on the timestamp
-                recipient,
-                amount: parseFloat(amount).toFixed(6), // Format the amount
-                description,
-                status: 'pending', // Default status
-            };
-            setTransactionRequests([...transactionRequests, newRequest]);
-        }
-    };
-
-    // Update the status of a transaction request
-    const updateRequestStatus = (id, newStatus) => {
-        setTransactionRequests(transactionRequests.map(req => (req.id === id ? { ...req, status: newStatus } : req)));
-    };
-
-    // Add a new authorized user
-    // const addAuthorizedUser = () => {
-    //     const userName = prompt("Enter the name of the authorized user:");
-    //     const userAddress = prompt("Enter the Ethereum address of the authorized user (e.g., 0x123...):");
-    //
-    //     if (userName && userAddress) {
-    //         const newUser = { id: Date.now(), name: userName, address: userAddress };
-    //         setAuthorizedUsers([...authorizedUsers, newUser]);
-    //     }
-    // };
-
     // Remove an authorized user
     const removeAuthorizedUser = (id) => {
         setAuthorizedUsers(authorizedUsers.filter(user => user.id !== id));
     };
 
+    // Function to fetch the contract balance
+    const fetchContractBalance = async () => {
+        try {
+            // Use the existing provider to get the contract balance
+            const balance = await provider.getBalance(contractAddress);
+            setContractBalance(ethers.utils.formatEther(balance));
+        } catch (error) {
+            console.error("Error fetching contract balance:", error);
+        }
+    };
+
     return (
         <div className="App">
             <header className="App-header">
-                <h1>University of Florida ACM Funds Manager</h1>
+                <h1>Club Funds Manager</h1>
 
                 {/* Wallet Creation Screen */}
                 {currentScreen === 'walletCreation' && (
                     <div>
-                        <h1>Web3 Modal Connection!</h1>
-                        {
-                            web3Provider == null ? (
-                                //run if null
-                                <button onClick={connectWallet}>
-                                    Connect Wallet
-                                </button>
-
-                            ) : (
-                                <div>
-                                    <p>Connected!</p>
-                                    <p>Address: {web3Provider.provider.selectedAddress}</p>
-                                </div>
-                            )
-                        }
-                        <h2>Create Sending Wallet</h2>
-                        <button onClick={createAndFundWallet}>Create and Fund Club Wallet</button>
+                        <p>Create and fund your wallet!</p>
+                        <button onClick={createAndFundWallet}>Click me!</button>
                         <p>Status: {status}</p>
                     </div>
                 )}
@@ -242,11 +293,32 @@ function App() {
                 {/* Wallet Details Screen */}
                 {currentScreen === 'walletDetails' && (
                     <div>
-                        <h2>Wallet Created Successfully!</h2>
-                        <p>Here are your wallet details:</p>
-                        <h3>Wallet Address: {walletAddress}</h3>
-                        <h3>Wallet Balance: {walletBalance} ETH</h3>
-                        <button onClick={() => setCurrentScreen('authorizedUsers')}>Next</button>
+                        <h3>Here are your wallet details!</h3>
+                        <p>Wallet Address: {walletAddress}</p>
+                        <p>Wallet Balance: {walletBalance} ETH</p>
+                        <button onClick={() => setCurrentScreen('walletConnect')}>Next</button>
+                    </div>
+                )}
+
+                {/* Wallet Creation Screen */}
+                {currentScreen === 'walletConnect' && (
+                    <div>
+                        <p>Connect your wallet!</p>
+                        {
+                            web3Provider == null ? (
+                                //run if null
+                                <button onClick={connectWallet}>
+                                    Connect Wallet
+                                </button>
+                            ) : (
+                                <div>
+                                    <p>Connected!</p>
+                                    <h3>Address: {web3Provider.provider.selectedAddress}</h3>
+                                    <button onClick={() => setCurrentScreen('authorizedUsers')}>Next</button>
+                                </div>
+                            )
+                        }
+
                     </div>
                 )}
 
@@ -271,55 +343,41 @@ function App() {
                 {currentScreen === 'payouts' && (
                     <div>
                         {/* Display the Wallet Address and Balance */}
-                        <h2>Wallet Address: {walletAddress}</h2>
-                        <h3>Wallet Balance: {walletBalance !== '' ? `${walletBalance} ETH` : 'Balance not available'}</h3>
+                        <p>Wallet Address: {walletAddress}</p>
+                        <p>Wallet Balance: {walletBalance !== '' ? `${walletBalance} ETH` : 'Balance not available'}</p>
 
-                        {/* Address Input Section */}
-                        <div className="input-container">
-                            <h2>Receiving Addresses</h2>
-                            <button onClick={addAddress}>Add Address</button>
-                            <ul>
-                                {addresses.map((address, index) => (
-                                    <li key={index}>
-                                        {address} <button onClick={() => removeAddress(index)}>Remove</button>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
+                        {/* Display the Contract Address and Balance */}
+                        <h3>Smart Contract Information</h3>
+                        <p>Contract Address: {contractAddress}</p>
+                        <p>Contract Balance: {contractBalance !== '' ? `${contractBalance} ETH` : 'Balance not available'}</p>
 
                         {/* Transaction Request Section */}
-                        <div className="transaction-container">
+                        <div>
                             <h2>Transaction Requests</h2>
-                            <button onClick={addTransactionRequest}>Add New Request</button>
-                            <ul>
-                                {transactionRequests.map((request) => (
-                                    <li key={request.id}>
-                                        <strong>{request.description}</strong> - {request.amount} ETH to {request.recipient}
-                                        <span> (Status: {request.status}) </span>
-                                        <button onClick={() => updateRequestStatus(request.id, 'accepted')}>Accept</button>
-                                        <button onClick={() => updateRequestStatus(request.id, 'denied')}>Deny</button>
-                                    </li>
-                                ))}
-                            </ul>
+                            {transactionRequests.length === 0 ? (
+                                <p>No transaction requests found.</p>
+                            ) : (
+                                <ul>
+                                    {transactionRequests.map((req) => (
+                                        <li key={req.id} style={{fontSize: '20px', marginBottom: '15px'}}>
+                                            <p style={{margin: '10px 0 !important'}}><b>To:</b> {req.to}</p>
+                                            <p style={{margin: '10px 0 !important'}}><b>Amount:</b> {req.amount} ETH</p>
+                                            <p style={{margin: '10px 0 !important'}}><b>Description:</b> {req.description}</p>
+                                            <p style={{margin: '10px 0 !important'}}><b>Status:</b> {req.executed ? "Executed" : req.approved ? "Approved" : req.status || "Pending"}</p>
+                                            {!req.approved && !req.executed && (
+                                                <div style={{marginTop: '10px !important'}}>
+                                                    <button style={{fontSize: '10px', marginRight: '10px'}} onClick={() => approveRequest(req.id)}>Approve</button>
+                                                    <button style={{fontSize: '10px'}} onClick={() => denyRequest(req.id)}>Deny</button>
+                                                </div>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                         </div>
-
-                        {/* Amount Input Section */}
-                        <div className="input-container">
-                            <h2>Transfer Amount (ETH)</h2>
-                            <input
-                                type="number"
-                                step="0.00000001"
-                                value={transferAmount}
-                                onChange={(e) => setTransferAmount(e.target.value)}
-                                placeholder="Enter amount in ETH"
-                            />
-                        </div>
-
-                        {/* Send Button */}
-                        <button onClick={sendPayouts}>Send Payouts</button>
-                        <p>Status: {status}</p>
                     </div>
                 )}
+
             </header>
         </div>
     );

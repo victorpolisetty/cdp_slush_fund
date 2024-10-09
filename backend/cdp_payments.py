@@ -39,8 +39,10 @@ def create_and_fund_sending_wallet():
         with open(seed_file_name, 'w') as f:
             f.write('{}')
         sending_wallet = create_sending_wallet()
-    print("The wallet private key is")
-    maybe_fund_wallet(sending_wallet)
+    print(sending_wallet.default_address)
+    sending_wallet.faucet()
+    print("My ETH balance is: ")
+    print(sending_wallet.balance(asset_id))   # maybe_fund_wallet(sending_wallet)
     return sending_wallet
 
 def create_sending_wallet():
@@ -82,24 +84,24 @@ def import_existing_wallet():
 
 
 # Attempts to fund a wallet if it does not have enough ETH
-def maybe_fund_wallet(sending_wallet):
-    eth_balance = sending_wallet.balance(asset_id)
-    print(f"Current ETH balance: {eth_balance}")
-
-    eth_required = transfer_amount * len(receiving_addresses)
-    print(f"ETH required: {eth_required}")
-
-    if eth_balance < eth_required:
-        print(
-            f"Need {eth_required} ETH; attempting to fund wallet with faucet. This may take ~1 minute..."
-        )
-        faucet_transaction = sending_wallet.faucet()
-
-        print(
-            f"Faucet transaction successfully completed: {faucet_transaction}")
-
-        new_eth_balance = sending_wallet.balance(asset_id)
-        print(f"New ETH balance: {new_eth_balance}")
+# def maybe_fund_wallet(sending_wallet):
+#     eth_balance = sending_wallet.balance(asset_id)
+#     print(f"Current ETH balance: {eth_balance}")
+#
+#     eth_required = transfer_amount * len(receiving_addresses)
+#     print(f"ETH required: {eth_required}")
+#
+#     if eth_balance < eth_required:
+#         print(
+#             f"Need {eth_required} ETH; attempting to fund wallet with faucet. This may take ~1 minute..."
+#         )
+#         faucet_transaction = sending_wallet.faucet()
+#
+#         print(
+#             f"Faucet transaction successfully completed: {faucet_transaction}")
+#
+#         new_eth_balance = sending_wallet.balance(asset_id)
+#         print(f"New ETH balance: {new_eth_balance}")
 
 
 # Send the payouts to the receiving addresses
@@ -142,6 +144,7 @@ def execute_payments(receiving_addresses):
             with open(seed_file_name, 'w') as f:
                 f.write('{}')
             sending_wallet = create_sending_wallet()
+        print(sending_wallet.default_address)
         print("DID I GET HERE")
         maybe_fund_wallet(sending_wallet, receiving_addresses)
         send_mass_payout(sending_wallet, receiving_addresses)
