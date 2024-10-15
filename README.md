@@ -12,6 +12,10 @@ Approval Visibility: See who's approved funds and who we're waiting on
 
 Consensus: Submit and track funding requests, ensuring full transparency and agreement
 
+### Demo
+
+https://github.com/user-attachments/assets/e4666d39-e35d-497d-bd0c-ea89be3fa0ed
+
 ### Architecture
 
 ![Screenshot 2024-10-14 at 6 21 44 PM](https://github.com/user-attachments/assets/d17aee8f-9bf1-4297-a70b-99bb217e8ec8)
@@ -19,10 +23,6 @@ Consensus: Submit and track funding requests, ensuring full transparency and agr
 ### Example
 
 ![Screenshot 2024-10-14 at 6 22 40 PM](https://github.com/user-attachments/assets/941a12e7-008e-433b-b0d9-8246b73240fd)
-
-### Demo
-
-https://github.com/user-attachments/assets/e4666d39-e35d-497d-bd0c-ea89be3fa0ed
 
 ## Instructions
 
