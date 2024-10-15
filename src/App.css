@@ -1,52 +1,182 @@
+/* General Styling */
+body, html {
+  margin: 0;
+  padding: 0;
+  font-family: 'Arial', sans-serif;
+  background-color: #f0f2f5;
+}
+
+/* Application Container */
 .App {
   text-align: center;
+  padding: 20px;
 }
 
+/* Application Header Styling */
+.App-title {
+  font-size: 2.5em;
+  margin: 20px 0;
+  color: #1d72b8;
+}
+
+/* Header Section */
+/* Increase the width and max-width for the application header */
 .App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  width: 90%; /* Set to 90% of the screen width */
+  max-width: 1200px; /* Allow more space for larger screens */
+  background-color: white;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  margin: 20px auto; /* Center the header */
+  padding: 20px;
 }
-
+/* Input Container */
 .input-container {
-  margin: 20px;
+  margin: 20px 0;
 }
 
+/* Button Styling */
+button {
+  padding: 12px 20px;
+  margin: 10px;
+  font-size: 14px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background-color: #1d72b8;
+  color: white;
+  transition: background-color 0.3s ease-in-out;
+}
+
+button:hover {
+  background-color: #155a94;
+}
+
+button:disabled {
+  background-color: #d3d3d3;
+  cursor: not-allowed;
+}
+
+/* Input Field Styling */
+input {
+  padding: 12px;
+  margin: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  width: 250px;
+}
+
+/* List Styles */
 ul {
   list-style: none;
   padding: 0;
 }
 
 li {
-  margin: 10px 0;
+  margin: 15px 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 15px;
 }
 
-button {
-  margin: 5px;
-  padding: 10px;
-  background-color: #61dafb;
-  border: none;
-  cursor: pointer;
+/* Payout Information Section */
+.payout-container {
+  text-align: left;
+  padding: 20px;
+  width: 90%; /* Set to 90% of the screen width */
+  max-width: 1200px; /* Allow more space for larger screens */
+  margin: 0 auto; /* Center the container */
 }
 
-input {
-  padding: 10px;
-  margin: 5px;
+.payout-container h2 {
+  font-size: 1.5em;
+  color: #333;
 }
 
-.small-font {
-  font-size: 20px;
-
+/* Transaction Request Section */
+.transaction-container {
+  text-align: left;
+  padding: 20px;
+  margin: 20px 0;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+.transaction-card {
+  background: #ffffff;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  padding: 15px;
+  margin: 10px 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-size: 14px; /* Updated font size */
+  line-height: 1.4; /* Adjust line spacing for better readability */
+}
+
+/* Transaction Text Styling */
+.transaction-card p {
+  margin: 5px 0; /* Decrease the space between paragraphs */
+  font-size: 10px; /* Smaller font for details */
+}
+
+/* Specific Styles for Status */
+.status-fulfilled {
+  font-size: 14px; /* Slightly larger font for status indicators */
+  font-weight: bold;
+  color: green;
+}
+
+.status-approved {
+  font-size: 14px; /* Larger font for status indicators */
+  font-weight: bold;
+  color: #1d72b8;
+}
+
+.status-pending {
+  font-size: 14px; /* Larger font for status indicators */
+  font-weight: bold;
+  color: orange;
+}
+
+/* Specific Button Styles */
 .small-button {
-  font-size: 10px;
+  font-size: 12px;
+  padding: 8px 12px;
+  margin: 5px;
 }
+
+/* Other Sections */
+.wallet-section {
+  margin: 30px 0;
+}
+
+h3 {
+  color: #1d72b8;
+}
+/* Smaller Action Button Styles */
+.action-button {
+  padding: 4px 8px; /* Further reduced padding */
+  margin: 3px; /* Reduced margin */
+  font-size: 9px; /* Smaller font size */
+  border: none;
+  border-radius: 3px; /* Smaller border radius */
+  cursor: pointer;
+  background-color: #1d72b8;
+  color: white;
+  transition: background-color 0.3s ease-in-out;
+}
+
+.action-button:hover {
+  background-color: #155a94; /* Darker color on hover */
+}
+
+.action-button:disabled {
+  background-color: #d3d3d3;
+  cursor: not-allowed;
+}
+

@@ -27,13 +27,17 @@ function App() {
     const [authorizedUsers, setAuthorizedUsers] = useState([]); // Track authorized users
     const [web3Provider, setWeb3Provider] = useState(null);
     const [contractBalance, setContractBalance] = useState(''); // New state variable for contract balance
+    const [showAddRequestForm, setShowAddRequestForm] = useState(false); // Toggle for Add Request Form
+    const [newRequestAddress, setNewRequestAddress] = useState(''); // New recipient address
+    const [newRequestAmount, setNewRequestAmount] = useState(''); // New request amount
+    const [newRequestDescription, setNewRequestDescription] = useState(''); // New request description
 
     //TODO: put contract address here
     const contractAddress = "0x8824aece0c78b3869c16dd4fa96d451480732417"; // TODO: Replace with your actual contract address
     const provider = new ethers.providers.JsonRpcProvider('https://base-sepolia.publicnode.com');
     // Define the contract ABI (replace with the full ABI if available)
     const contractAbi = [
-        "function addAuthorizedUser(address user) external",
+        "function addAuthorizedUser(address user) extusernal",
         "function authorizedUsers(address) external view returns (bool)",
         "function requestCounter() public view returns (uint256)",
         "function transactionRequests(uint256) public view returns (uint256 id, address requester, address to, uint256 amount, string memory description, bool approved, bool executed)",
@@ -220,6 +224,40 @@ function App() {
         }
     };
 
+    // Fetch Authorized Users from the Smart Contract
+    const fetchAuthorizedUsers = async () => {
+        try {
+            if (!web3Provider) {
+                console.error("No web3 provider found. Please connect the wallet first.");
+                return;
+            }
+
+            const contract = new ethers.Contract(contractAddress, contractAbi, web3Provider);
+            const accounts = await provider.listAccounts();
+            const users = [];
+            accounts.push('0xcE0407C1b2B2c62A2cb30A36eDA609AdC4F6b2DF')
+            for (let address of accounts) {
+                const isAuthorized = await contract.authorizedUsers(address);
+                if (isAuthorized) {
+                    users.push({ id: address, address });
+                }
+            }
+
+            setAuthorizedUsers(users);
+        } catch (error) {
+            console.error("Error fetching authorized users:", error);
+            setStatus(`Error fetching authorized users: ${error.message}`);
+        }
+    };
+
+    // Automatically fetch authorized users when the screen is loaded
+    useEffect(() => {
+        if (currentScreen === 'authorizedUsers') {
+            fetchAuthorizedUsers();
+        }
+    }, [currentScreen]);
+
+
     // Function to execute a transaction request
     const executeRequest = async (requestId) => {
         try {
@@ -317,64 +355,96 @@ function App() {
         }
     };
 
+    // Handler for creating a new transaction request
+    const createTransactionRequest = async () => {
+        try {
+            if (!web3Provider) {
+                console.error("No web3 provider found. Please connect the wallet first.");
+                return;
+            }
+
+            const signer = web3Provider.getSigner();
+            const contract = new ethers.Contract(contractAddress, contractAbi, signer);
+
+            // Call the smart contract to create a new transaction request
+            const tx = await contract.createTransactionRequest(
+                newRequestAddress,
+                ethers.utils.parseEther(newRequestAmount),
+                newRequestDescription
+            );
+
+            await tx.wait(); // Wait for the transaction to be confirmed
+
+            setStatus(`Transaction request created successfully.`);
+            setShowAddRequestForm(false); // Hide the form after creation
+            setNewRequestAddress(''); // Reset form fields
+            setNewRequestAmount('');
+            setNewRequestDescription('');
+            fetchRequests(); // Refresh the transaction list
+        } catch (error) {
+            console.error("Error creating transaction request:", error);
+            setStatus(`Error creating transaction request: ${error.message}`);
+        }
+    };
+
     return (
         <div className="App">
-            <header className="App-header">
-                <h1>Club Funds Manager</h1>
+            {/* Application Title */}
+            <h1 className="App-title">Association for Computing Machinery (ACM)</h1>
 
+            <header className="App-header">
                 {/* Wallet Creation Screen */}
                 {currentScreen === 'walletCreation' && (
-                    <div>
-                        <p>Create and fund your wallet!</p>
-                        <button onClick={createAndFundWallet}>Click me!</button>
+                    <div className="wallet-section">
+                        <h2>Create and Fund Your Wallet</h2>
+                        <p>Get started by creating a new wallet and adding initial funds.</p>
+                        <button onClick={createAndFundWallet}>Create Wallet</button>
                         <p>Status: {status}</p>
                     </div>
                 )}
 
                 {/* Wallet Details Screen */}
                 {currentScreen === 'walletDetails' && (
-                    <div>
-                        <h3>Here are your wallet details!</h3>
-                        <p>Wallet Address: {walletAddress}</p>
-                        <p>Wallet Balance: {walletBalance} ETH</p>
-                        <button onClick={() => setCurrentScreen('walletConnect')}>Next</button>
+                    <div className="wallet-section">
+                        <h3>Wallet Details</h3>
+                        <p><b>Address:</b> {walletAddress}</p>
+                        <p><b>Balance:</b> {walletBalance} ETH</p>
+                        <button onClick={() => setCurrentScreen('walletConnect')}>Connect Wallet</button>
                     </div>
                 )}
 
-                {/* Wallet Creation Screen */}
+                {/* Wallet Connect Screen */}
                 {currentScreen === 'walletConnect' && (
-                    <div>
-                        <p>Connect your wallet!</p>
-                        {
-                            web3Provider == null ? (
-                                //run if null
-                                <button onClick={connectWallet}>
-                                    Connect Wallet
-                                </button>
-                            ) : (
-                                <div>
-                                    <p>Connected!</p>
-                                    <h3>Address: {web3Provider.provider.selectedAddress}</h3>
-                                    <button onClick={() => setCurrentScreen('authorizedUsers')}>Next</button>
-                                </div>
-                            )
-                        }
-
+                    <div className="wallet-section">
+                        <h3>Connect Your Wallet</h3>
+                        {web3Provider == null ? (
+                            <button onClick={connectWallet}>Connect Wallet</button>
+                        ) : (
+                            <div>
+                                <p>Connected Successfully!</p>
+                                <h4>Wallet Address: {web3Provider.provider.selectedAddress}</h4>
+                                <button onClick={() => setCurrentScreen('authorizedUsers')}>Next</button>
+                            </div>
+                        )}
                     </div>
                 )}
 
                 {/* Authorized Users Screen */}
                 {currentScreen === 'authorizedUsers' && (
-                    <div>
-                        <h2>Manage Authorized Users</h2>
-                        <button onClick={addAuthorizedUser}>Add Authorized User</button>
+                    <div className="wallet-section">
+                        <h3>Authorized Users</h3>
+                        <button onClick={addAuthorizedUser}>Add User</button>
                         <ul>
-                            {authorizedUsers.map((user) => (
-                                <li key={user.id}>
-                                    {user.name} ({user.address})
-                                    <button onClick={() => removeAuthorizedUser(user.id)}>Remove</button>
-                                </li>
-                            ))}
+                            {authorizedUsers.length === 0 ? (
+                                <li>No authorized users found.</li>
+                            ) : (
+                                authorizedUsers.map((user) => (
+                                    <li key={user.id}>
+                                        <span>{user.address}</span>
+                                        <button className="small-button" onClick={() => removeAuthorizedUser(user.id)}>Remove</button>
+                                    </li>
+                                ))
+                            )}
                         </ul>
                         <button onClick={() => setCurrentScreen('payouts')}>Next</button>
                     </div>
@@ -382,77 +452,76 @@ function App() {
 
                 {/* Payouts Screen */}
                 {currentScreen === 'payouts' && (
-                    <div>
-                        {/* Display the Wallet Address and Balance */}
-                        <p>Wallet Address: {walletAddress}</p>
-                        <p>Wallet Balance: {walletBalance !== '' ? `${walletBalance} ETH` : 'Balance not available'}</p>
+                    <div className="payout-container">
+                        <h3>Payout Information</h3>
 
-                        {/* Display the Contract Address and Balance */}
-                        <h3>Smart Contract Information</h3>
-                        <p>Contract Address: {contractAddress}</p>
-                        <p>Contract Balance: {contractBalance !== '' ? `${contractBalance} ETH` : 'Balance not available'}</p>
+                        <h4>Current Connected Wallet:</h4>
+                        <p><b>Wallet Address:</b> {walletAddress}</p>
+                        <p><b>Wallet
+                            Balance:</b> {walletBalance !== '' ? `${walletBalance} ETH` : 'Balance not available'}</p>
+
+                        <h4>ACM Club Fund (Smart Contract):</h4>
+                        <p><b>Contract Address:</b> {contractAddress}</p>
+                        <p><b>Contract
+                            Balance:</b> {contractBalance !== '' ? `${contractBalance} ETH` : 'Balance not available'}
+                        </p>
 
                         {/* Transaction Request Section */}
-                        <div>
-                            <h2>Transaction Requests</h2>
+                        <div className="transaction-container">
+                            <h3>Transaction Requests</h3>
                             {transactionRequests.length === 0 ? (
                                 <p>No transaction requests found.</p>
                             ) : (
                                 <ul>
                                     {transactionRequests.map((req) => (
-                                        <li key={req.id} style={{ fontSize: '20px', marginBottom: '15px' }}>
-
-                                            {/* Container for "To", "Amount", and "Description" fields */}
-                                            <div style={{ marginBottom: '10px' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-                                                    <b style={{ marginRight: '5px' }}>To:</b>
-                                                    <span>{req.to}</span>
-                                                </div>
-
-                                                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-                                                    <b style={{ marginRight: '5px' }}>Amount:</b>
-                                                    <span>{req.amount} ETH</span>
-                                                </div>
-
-                                                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-                                                    <b style={{ marginRight: '5px' }}>Description:</b>
-                                                    <span>{req.description}</span>
-                                                </div>
-                                            </div>
-
-                                            {/* Display the status: Fulfilled for executed, Approved for approved but not executed, and Pending otherwise */}
-                                            <p style={{ margin: '10px 0' }}>
-                                                <b>Status:</b> {req.executed ? "Fulfilled" : req.approved ? "Approved" : req.status || "Pending"}
+                                        <li key={req.id} className="transaction-card">
+                                            <p className="transaction-text"><b>To:</b> {req.to}</p>
+                                            <p className="transaction-text"><b>Amount:</b> {req.amount} ETH</p>
+                                            <p className="transaction-text"><b>Description:</b> {req.description}</p>
+                                            <p className={`status-${req.executed ? 'fulfilled' : req.approved ? 'approved' : 'pending'}`}>
+                                                <b>Status:</b> {req.executed ? "Fulfilled" : req.approved ? "Approved" : "Pending"}
                                             </p>
 
-                                            {/* Conditional rendering for Approve and Execute buttons */}
+                                            {/* Smaller Approve and Deny Buttons */}
                                             {!req.approved && !req.executed && (
-                                                <div style={{ marginTop: '10px' }}>
-                                                    <button style={{ fontSize: '10px', marginRight: '10px' }} onClick={() => approveRequest(req.id)}>Approve</button>
-                                                    <button style={{ fontSize: '10px' }} onClick={() => denyRequest(req.id)}>Deny</button>
+                                                <div>
+                                                    <button className="action-button"
+                                                            onClick={() => approveRequest(req.id)}>Approve
+                                                    </button>
+                                                    <button className="action-button"
+                                                            onClick={() => denyRequest(req.id)}>Deny
+                                                    </button>
                                                 </div>
                                             )}
 
-                                            {/* New Execute button - Only visible if the request is approved but not executed */}
+                                            {/* Execute Button for Approved but Not Executed Requests */}
                                             {req.approved && !req.executed && (
-                                                <div style={{ marginTop: '10px' }}>
-                                                    <button style={{ fontSize: '10px', backgroundColor: 'green', color: 'white' }} onClick={() => executeRequest(req.id)}>Execute</button>
-                                                </div>
+                                                <button className="action-button"
+                                                        style={{backgroundColor: 'green', color: 'white'}}
+                                                        onClick={() => executeRequest(req.id)}>Execute</button>
                                             )}
-                                            {/*/!* Show a label indicating the request was fulfilled *!/*/}
-                                            {/*{req.executed && (*/}
-                                            {/*    <div style={{ marginTop: '10px', color: 'green' }}>*/}
-                                            {/*        <p><b>✅</b></p>*/}
-                                            {/*    </div>*/}
-                                            {/*)}*/}
                                         </li>
                                     ))}
                                 </ul>
                             )}
                         </div>
+                        {/* Add Transaction Request Section */}
+                        <div className="add-request-section">
+                            <h3>Add New Transaction Request</h3>
+                            <button className="small-button" onClick={() => setShowAddRequestForm(true)}>+ Add Request</button>
+
+                            {showAddRequestForm && (
+                                <div className="add-request-form">
+                                    <input type="text" value={newRequestAddress} placeholder="Recipient Address" onChange={(e) => setNewRequestAddress(e.target.value)} />
+                                    <input type="number" value={newRequestAmount} placeholder="Amount (ETH)" onChange={(e) => setNewRequestAmount(e.target.value)} />
+                                    <input type="text" value={newRequestDescription} placeholder="Description" onChange={(e) => setNewRequestDescription(e.target.value)} />
+                                    <button className="action-button" onClick={createTransactionRequest}>Submit Request</button>
+                                    <button className="action-button" onClick={() => setShowAddRequestForm(false)}>Cancel</button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
-
             </header>
         </div>
     );
